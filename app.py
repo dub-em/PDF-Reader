@@ -28,12 +28,15 @@ def main():
  
     # st.write(pdf)
     if orig_file is not None:
+
+        #Downloads the uploaded PDF file and parses through it using Camelot module, and extracts all tables.
         file = orig_file.getvalue()
         with open('./uploadedpdf1.pdf', 'wb') as f: 
             f.write(file)
         tables = './uploadedpdf1.pdf'
         tables = camelot.read_pdf(tables)
 
+        #Table is wrangled in preparation for transformation.
         df = tables[0].df
         df.columns = list(df.iloc[0,:])
         columns = [column.replace(" ","") for column in df.columns]
@@ -41,24 +44,26 @@ def main():
         df.drop([0], axis=0, inplace=True)
         df
 
-        auth_config = weaviate.AuthApiKey(api_key=settings.weaviate_apikey)  # Replace w/ your Weaviate instance API key
+        auth_config = weaviate.AuthApiKey(api_key=settings.weaviate_apikey)  
 
         # Instantiate the client
         client = weaviate.Client(
-            url=settings.weaviate_url, # Replace w/ your Weaviate cluster URL
+            url=settings.weaviate_url, 
             auth_client_secret=auth_config,
             additional_headers={
-                "X-OpenAI-Api-Key": settings.openai_key, # Replace with your OpenAI key
+                "X-OpenAI-Api-Key": settings.openai_key, 
                 }
         )
 
         store_name = orig_file.name[:-4]
         
+        #Specifies the properties for the class object using the table details
         properties = []
         for i in df.columns:
             new_property = {"name": str(i), "dataType":["text"]}
             properties.append(new_property)
         
+        #Defines the Class Object
         class_obj = {
             # Class definition
             "class": str(store_name),
@@ -80,8 +85,10 @@ def main():
             },
         }
 
+        #Client schema is created using the class object
         client.schema.create_class(class_obj)
 
+        #Each row of the Table is transformed using the OpenAI LLM and upsert into the Weaviate Vector Store.
         for i in range(df.shape[0]):
             data_object = {}
             for key in data_object.keys():
@@ -92,6 +99,7 @@ def main():
                 uuid='12345678-e64f-5d94-90db-c8cfa3fc123'+str(i+1),
             )
 
+        #Confirms how many entries were upsert into the Vector Store, under the specified class.
         status = client.query.aggregate(str(store_name)).with_meta_count().do()
         st.write(f'{status}')
 
