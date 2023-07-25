@@ -1,0 +1,8 @@
+pydantic==1.10.7
+pydantic[dotenv]
+streamlit==1.18.1
+streamlit-extras
+camelot-py[cv]
+PyPDF2<3.0
+weaviate-client
+altair==4.0
